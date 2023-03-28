@@ -26,35 +26,39 @@
    SOFTWARE.
  */
 
-'use strict';
+'use strict'
 
-const http = require('../../../lib.js').http;
+const http = require('../../../lib.js').http
 
 const urlValidator = function (url) {
-  url = url.trim();
+  url = url.trim()
   if (url === '') {
-    return null;
+    return null
   }
   try {
-    url = new URL(url);
+    url = new URL(url)
   } catch (error) {
-    return null;
+    return null
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    return null;
+    return null
   }
-  url.search = '';
+  url.search = ''
 
-  return url.toString().replace(/\/$/, '');
-};
+  return url.toString().replace(/\/$/, '')
+}
 
 const getToken = async function () {
-  if (this.accessToken && this.tokenExpires && this.tokenExpires.getTime() > Date.now()) {
-    return this.accessToken;
+  if (
+    this.accessToken &&
+    this.tokenExpires &&
+    this.tokenExpires.getTime() > Date.now()
+  ) {
+    return this.accessToken
   }
 
-  this.accessToken = null;
-  this.tokenExpires = null;
+  this.accessToken = null
+  this.tokenExpires = null
 
   const options = {
     method: 'post',
@@ -63,58 +67,66 @@ const getToken = async function () {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     data: `username=${this.credentials.username}&password=${this.credentials.password}&grant_type=password`,
-  };
+  }
 
-  if (this.idmType === 'tokenproxy') {
-    if (!this.idmEndpoint.endsWith('/token')) {
-      options.url = '/token';
-    }
-    options.data = `username=${this.credentials.username}&password=${this.credentials.password}`;
+  if (this.idmType === 'accessToken') {
+    this.accessToken = this.credentials.clientsecret
   } else {
-    const authBearer = Buffer.from(`${this.credentials.clientid}:${this.credentials.clientsecret}`).toString(
-      'base64'
-    );
-    options.headers.Authorization = `Basic ${authBearer}`;
-    if (this.idmType === 'keyrock' && !this.idmEndpoint.endsWith('/oauth2/token')) {
-      options.url = '/oauth2/token';
-    }
-  }
-
-  try {
-    const res = await http(options);
-    if (res.status === 200) {
-      this.accessToken = res.data.access_token;
-      this.tokenExpires = new Date(Date.now() + (res.data.expires_in - 60) * 1000);
+    if (this.idmType === 'tokenproxy') {
+      if (!this.idmEndpoint.endsWith('/token')) {
+        options.url = '/token'
+      }
+      options.data = `username=${this.credentials.username}&password=${this.credentials.password}`
     } else {
-      this.error(`Error while obtaining token. Status Code: ${res.status} ${res.statusText}`);
+      const authBearer = Buffer.from(
+        `${this.credentials.clientid}:${this.credentials.clientsecret}`
+      ).toString('base64')
+      options.headers.Authorization = `Basic ${authBearer}`
+      if (
+        this.idmType === 'keyrock' &&
+        !this.idmEndpoint.endsWith('/oauth2/token')
+      ) {
+        options.url = '/oauth2/token'
+      }
     }
-  } catch (error) {
-    this.error(`Exception while obtaining token: ${error}`);
+
+    try {
+      const res = await http(options)
+      if (res.status === 200) {
+        this.accessToken = res.data.access_token
+        this.tokenExpires = new Date(
+          Date.now() + (res.data.expires_in - 60) * 1000
+        )
+      } else {
+        this.error(
+          `Error while obtaining token. Status Code: ${res.status} ${res.statusText}`
+        )
+      }
+    } catch (error) {
+      this.error(`Exception while obtaining token: ${error}`)
+    }
   }
 
-  return this.accessToken;
-};
+  return this.accessToken
+}
 
 module.exports = function (RED) {
   function OpenAPIsNode(config) {
-    RED.nodes.createNode(this, config);
-    const node = this;
+    RED.nodes.createNode(this, config)
+    const node = this
 
-    node.apiEndpoint = urlValidator(config.apiEndpoint);
-    node.service = config.service;
+    node.apiEndpoint = urlValidator(config.apiEndpoint)
+    node.service = config.service
 
-    node.idmType = config.idmType || 'none';
-    node.idmEndpoint = urlValidator(config.idmEndpoint);
+    node.idmType = config.idmType || 'none'
+    node.idmEndpoint = urlValidator(config.idmEndpoint)
 
-    node.accessToken = null;
-    node.tokenExpires = null;
+    node.accessToken = null
+    node.tokenExpires = null
 
-    node.getToken =
-      node.idmType === 'none'
-        ? null
-        : getToken;
+    node.getToken = node.idmType === 'none' ? null : getToken
 
-    node.geType = config.geType;
+    node.geType = config.geType
   }
 
   RED.nodes.registerType('Open APIs', OpenAPIsNode, {
@@ -124,5 +136,5 @@ module.exports = function (RED) {
       clientid: { type: 'text' },
       clientsecret: { type: 'password' },
     },
-  });
-};
+  })
+}
